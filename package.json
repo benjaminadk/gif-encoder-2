@@ -1,0 +1,19 @@
+{
+  "name": "gif-encoder-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": {
+    "name": "benjaminadk",
+    "email": "benjaminadk@gmail.com",
+    "url": "https://github.com/benjaminadk"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "canvas": "2.5.0"
+  }
+}

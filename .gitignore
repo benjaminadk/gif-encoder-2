@@ -1,0 +1,8 @@
+# dependencies
+node_modules
+
+# VSCode settings
+.vscode
+
+# experiments
+experiments
