@@ -1,4 +1,5 @@
 const stream = require('stream')
+const EventEmitter = require('events')
 const LZWEncoder = require('./LZWEncoder.js')
 const NeuQuant = require('./TypedNeuQuant.js')
 const { OctreeQuant, Color } = require('./OctreeQuant')
@@ -29,12 +30,16 @@ class ByteArray {
   }
 }
 
-class GIFEncoder {
-  constructor(width, height, algorithm = 'neuquant', useOptimizer = false) {
+class GIFEncoder extends EventEmitter {
+  constructor(width, height, algorithm = 'neuquant', useOptimizer = false, totalFrames = 0) {
+    super()
+
     this.width = ~~width
     this.height = ~~height
     this.algorithm = algorithm
     this.useOptimizer = useOptimizer
+    this.totalFrames = totalFrames
+    this.frames = 1
     this.threshold = 90
     this.indexedPixels = null
     this.palSizeNeu = 7
@@ -66,7 +71,7 @@ class GIFEncoder {
     return rs
   }
 
-  emit() {
+  emitData() {
     if (this.readStreams.length === 0) {
       return
     }
@@ -81,14 +86,14 @@ class GIFEncoder {
   start() {
     this.out.writeUTFBytes('GIF89a')
     this.started = true
-    this.emit()
+    this.emitData()
   }
 
   end() {
     if (this.readStreams.length === null) {
       return
     }
-    this.emit()
+    this.emitData()
     this.readStreams.forEach(rs => rs.push(null))
     this.readStreams = []
   }
@@ -117,7 +122,10 @@ class GIFEncoder {
     }
     this.writePixels()
     this.firstFrame = false
-    this.emit()
+    this.emitData()
+
+    if (this.totalFrames)
+      this.emit('progress', Math.floor((this.frames++ / this.totalFrames) * 100))
   }
 
   analyzePixels() {

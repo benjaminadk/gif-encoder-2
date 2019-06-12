@@ -1,6 +1,6 @@
 {
   "name": "gif-encoder-2",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "GIF generator for Node.js",
   "main": "index.js",
   "repository": {
