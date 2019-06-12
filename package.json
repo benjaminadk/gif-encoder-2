@@ -1,8 +1,12 @@
 {
   "name": "gif-encoder-2",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "GIF generator for Node.js",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benjaminadk/gif-encoder-2.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,8 +16,5 @@
     "email": "benjaminadk@gmail.com",
     "url": "https://github.com/benjaminadk"
   },
-  "license": "ISC",
-  "devDependencies": {
-    "canvas": "2.5.0"
-  }
+  "license": "UNLICENSE"
 }

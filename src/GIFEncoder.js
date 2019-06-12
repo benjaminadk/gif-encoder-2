@@ -1,589 +1,391 @@
-/*
-  GIFEncoder.js
-  Authors
-  Kevin Weiner (original Java version - kweiner@fmsware.com)
-  Thibault Imbert (AS3 version - bytearray.org)
-  Johan Nordberg (JS version - code@johan-nordberg.com)
-  Eugene Ware (node.js streaming version - eugene@noblesmaurai.com)
-  Benjamin Brooke (optimizer / octree option - benjaminadk@gmail.com)
-*/
-
 const stream = require('stream')
-const { OctreeQuant, Color } = require('./OctreeQuant')
 const LZWEncoder = require('./LZWEncoder.js')
 const NeuQuant = require('./TypedNeuQuant.js')
+const { OctreeQuant, Color } = require('./OctreeQuant')
 
-function ByteArray() {
-  this.data = []
-}
-
-ByteArray.prototype.getData = function() {
-  return Buffer.from(this.data)
-}
-
-ByteArray.prototype.writeByte = function(val) {
-  this.data.push(val)
-}
-
-ByteArray.prototype.writeUTFBytes = function(string) {
-  for (var l = string.length, i = 0; i < l; i++) this.writeByte(string.charCodeAt(i))
-}
-
-ByteArray.prototype.writeBytes = function(array, offset, length) {
-  for (var l = length || array.length, i = offset || 0; i < l; i++) this.writeByte(array[i])
-}
-
-function GIFEncoder(width, height, algorithm = 'neuquant', useOptimizer = true) {
-  // image size
-  this.width = ~~width
-  this.height = ~~height
-  // palette creation algoritm
-  // neuquant - slightly faster, larger file size (default)
-  // octree - slightly slower, smaller file size
-  this.algorithm = algorithm
-  // will relace this color with transparent in gif
-  this.transparent = null
-  // index of transparent in color table
-  this.transIndex = 0
-  // gif repeat setting 0=forever, -1=no repeat n=number of repeats
-  this.repeat = 0
-  // length of time frame is displayed in hundredths of a sec (100=1s)
-  // setDelay takes ms however
-  this.delay = 0
-  // RGBA image data of current frame
-  this.image = null
-  // RGBA image data of previous frame
-  this.prevImage = null
-  // use frame comparison optimization to shorten GIF creation time
-  // reuses color table if image is >= threshold % similar to previous image
-  this.useOptimizer = useOptimizer
-  // frame comparison threshold %
-  this.threshold = 90
-  // flag to resuse color table
-  this.reuseTab = false
-  // color table [r,g,b,r,g,b,...]
-  this.colorTab = null
-  // maps image pixels to current color table
-  this.indexedPixels = null
-  this.colorDepth = null
-  this.usedEntry = new Array()
-  // palette size = 2^n+1
-  // default is 7 which leads to 2^7+1 -> 2^8 -> 256
-  this.palSize = 7
-  // octree palette can be set [4-7]
-  this.octPalSize = 7
-  // how to treat disposal of previous frame
-  this.dispose = -1
-  this.firstFrame = true
-  this.sample = 10
-  this.started = false
-  this.readStreams = []
-  this.out = new ByteArray()
-}
-
-GIFEncoder.prototype.createReadStream = function(rs) {
-  if (!rs) {
-    rs = new stream.Readable()
-    rs._read = function() {}
-  }
-  this.readStreams.push(rs)
-  return rs
-}
-
-GIFEncoder.prototype.createWriteStream = function(options) {
-  var self = this
-  if (options) {
-    Object.keys(options).forEach(function(option) {
-      var fn = 'set' + option[0].toUpperCase() + option.substr(1)
-      if (
-        ~[
-          'setDelay',
-          'setFrameRate',
-          'setDispose',
-          'setRepeat',
-          'setTransparent',
-          'setQuality'
-        ].indexOf(fn)
-      ) {
-        self[fn].call(self, options[option])
-      }
-    })
+class ByteArray {
+  constructor() {
+    this.data = []
   }
 
-  var ws = new stream.Duplex({ objectMode: true })
-  ws._read = function() {}
-  this.createReadStream(ws)
-
-  var self = this
-  ws._write = function(data, enc, next) {
-    if (!self.started) self.start()
-    self.addFrame(data)
-    next()
-  }
-  var end = ws.end
-  ws.end = function() {
-    end.apply(ws, [].slice.call(arguments))
-    self.finish()
-  }
-  return ws
-}
-
-/*
-  Writes GIF file header
-*/
-GIFEncoder.prototype.start = function() {
-  this.out.writeUTFBytes('GIF89a')
-  this.started = true
-  this.emit()
-}
-
-GIFEncoder.prototype.emit = function() {
-  var self = this
-  if (this.readStreams.length === 0) return
-  if (this.out.data.length) {
-    this.readStreams.forEach(function(rs) {
-      rs.push(Buffer.from(self.out.data))
-    })
-    this.out.data = []
-  }
-}
-
-GIFEncoder.prototype.end = function() {
-  if (this.readStreams.length === null) return
-  this.emit()
-  this.readStreams.forEach(function(rs) {
-    rs.push(null)
-  })
-  this.readStreams = []
-}
-
-/*
-  Adds next GIF frame. The frame is not written immediately, but is
-  actually deferred until the next frame is received so that timing
-  data can be inserted.  Invoking finish() flushes all frames.
-*/
-GIFEncoder.prototype.addFrame = function(imageData) {
-  if (imageData && imageData.getImageData) {
-    this.image = imageData.getImageData(0, 0, this.width, this.height).data
-  } else {
-    this.image = imageData
+  getData() {
+    return Buffer.from(this.data)
   }
 
-  if (this.algorithm === 'neuquant') {
-    this.analyzePixelsNeuQuant() // process frame based on NeuQuant algoritm
-  } else if (this.algorithm === 'octree') {
-    this.analyzePixelsOctree() // process frame based on Octree algorithm
+  writeByte(val) {
+    this.data.push(val)
   }
 
-  if (this.firstFrame) {
-    this.writeLSD() // logical screen descriptor
-    this.writePalette() // global color table
-    if (this.repeat >= 0) {
-      this.writeNetscapeExt() // netscape extension to handle repetitions
+  writeUTFBytes(str) {
+    for (var len = str.length, i = 0; i < len; i++) {
+      this.writeByte(str.charCodeAt(i))
     }
   }
 
-  this.writeGraphicCtrlExt() // graphic control extension
-  this.writeImageDesc() // image descriptor
-  if (!this.firstFrame) this.writePalette() // local color table
-  this.writePixels() // encode and write pixel data
-
-  this.firstFrame = false
-  this.emit()
+  writeBytes(array, offset, length) {
+    for (var len = length || array.length, i = offset || 0; i < len; i++) {
+      this.writeByte(array[i])
+    }
+  }
 }
 
-GIFEncoder.prototype.analyzePixelsNeuQuant = function() {
-  var w = this.width
-  var h = this.height
+class GIFEncoder {
+  constructor(width, height, algorithm = 'neuquant', useOptimizer = false) {
+    this.width = ~~width
+    this.height = ~~height
+    this.algorithm = algorithm
+    this.useOptimizer = useOptimizer
+    this.threshold = 90
+    this.indexedPixels = null
+    this.palSizeNeu = 7
+    this.palSizeOct = 7
+    this.sample = 10
+    this.colorTab = null
+    this.reuseTab = null
+    this.colorDepth = null
+    this.usedEntry = new Array()
+    this.firstFrame = true
+    this.started = false
+    this.image = null
+    this.prevImage = null
+    this.dispose = -1
+    this.repeat = 0
+    this.delay = 0
+    this.transparent = null
+    this.transIndex = 0
+    this.readStreams = []
+    this.out = new ByteArray()
+  }
 
-  var data = this.image
+  createReadStream(rs) {
+    if (!rs) {
+      rs = new stream.Readable()
+      rs._read = function() {}
+    }
+    this.readStreams.push(rs)
+    return rs
+  }
 
-  if (this.prevImage && this.useOptimizer) {
-    var diff = 0
-    for (let i = 0, l = data.length; i < l; i += 4) {
-      if (
-        data[i] !== this.prevImage[i] ||
-        data[i + 1] !== this.prevImage[i + 1] ||
-        data[i + 2] !== this.prevImage[i + 2]
-      ) {
-        diff += 1
+  emit() {
+    if (this.readStreams.length === 0) {
+      return
+    }
+    if (this.out.data.length) {
+      this.readStreams.forEach(rs => {
+        rs.push(Buffer.from(this.out.data))
+      })
+      this.out.data = []
+    }
+  }
+
+  start() {
+    this.out.writeUTFBytes('GIF89a')
+    this.started = true
+    this.emit()
+  }
+
+  end() {
+    if (this.readStreams.length === null) {
+      return
+    }
+    this.emit()
+    this.readStreams.forEach(rs => rs.push(null))
+    this.readStreams = []
+  }
+
+  addFrame(input) {
+    if (input && input.getImageData) {
+      this.image = input.getImageData(0, 0, this.width, this.height).data
+    } else {
+      this.image = input
+    }
+
+    this.analyzePixels()
+
+    if (this.firstFrame) {
+      this.writeLSD()
+      this.writePalette()
+      if (this.repeat >= 0) {
+        this.writeNetscapeExt()
       }
     }
-    const total = this.prevImage.length / 4
-    const match = 100 - Math.ceil((diff / total) * 100)
-    this.reuseTab = match >= this.threshold
-  }
 
-  this.prevImage = this.image
-
-  this.pixels = new Uint8Array(w * h * 3)
-
-  var count = 0
-
-  for (var i = 0; i < h; i++) {
-    for (var j = 0; j < w; j++) {
-      var b = i * w * 4 + j * 4
-      this.pixels[count++] = data[b]
-      this.pixels[count++] = data[b + 1]
-      this.pixels[count++] = data[b + 2]
+    this.writeGraphicCtrlExt()
+    this.writeImageDesc()
+    if (!this.firstFrame) {
+      this.writePalette()
     }
+    this.writePixels()
+    this.firstFrame = false
+    this.emit()
   }
 
-  var len = this.pixels.length
-  var nPix = len / 3
+  analyzePixels() {
+    const w = this.width
+    const h = this.height
 
-  this.indexedPixels = new Uint8Array(nPix)
+    var data = this.image
 
-  if (!this.reuseTab) {
-    this.quantizer = new NeuQuant(this.pixels, this.sample)
-    this.quantizer.buildColormap()
-    this.colorTab = this.quantizer.getColormap()
-  }
-
-  var k = 0
-  for (var j = 0; j < nPix; j++) {
-    var index = this.quantizer.lookupRGB(
-      this.pixels[k++] & 0xff,
-      this.pixels[k++] & 0xff,
-      this.pixels[k++] & 0xff
-    )
-
-    this.usedEntry[index] = true
-    this.indexedPixels[j] = index
-  }
-
-  this.pixels = null
-  this.colorDepth = 8
-  this.palSize = 7
-
-  // get closest match to transparent color if specified
-  if (this.transparent !== null) {
-    this.transIndex = this.findClosest(this.transparent)
-
-    // ensure that pixels with full transparency in the RGBA image are using the selected transparent color index in the indexed image.
-    for (var pixelIndex = 0; pixelIndex < nPix; pixelIndex++) {
-      if (this.image[pixelIndex * 4 + 3] == 0) {
-        this.indexedPixels[pixelIndex] = this.transIndex
+    if (this.useOptimizer && this.prevImage) {
+      var delta = 0
+      for (var len = data.length, i = 0; i < len; i += 4) {
+        if (
+          data[i] !== this.prevImage[i] ||
+          data[i + 1] !== this.prevImage[i + 1] ||
+          data[i + 2] !== this.prevImage[i + 2]
+        ) {
+          delta++
+        }
       }
+      const match = 100 - Math.ceil((delta / (data.length / 4)) * 100)
+      this.reuseTab = match >= this.threshold
     }
-  }
-}
 
-/*
-  Analyzes the current frame with the Octree algorithm and creates color map
-*/
-GIFEncoder.prototype.analyzePixelsOctree = function() {
-  var w = this.width
-  var h = this.height
+    this.prevImage = data
 
-  var data = this.image
+    if (this.algorithm === 'neuquant') {
+      var count = 0
+      this.pixels = new Uint8Array(w * h * 3)
 
-  // optimizer compares current image with previous image
-  // controls this.reuseTab flag
-  if (this.prevImage && this.useOptimizer) {
-    var diff = 0
-    for (let i = 0, l = data.length; i < l; i += 4) {
-      if (
-        data[i] !== this.prevImage[i] ||
-        data[i + 1] !== this.prevImage[i + 1] ||
-        data[i + 2] !== this.prevImage[i + 2]
-      ) {
-        diff += 1
+      for (var i = 0; i < h; i++) {
+        for (var j = 0; j < w; j++) {
+          var b = i * w * 4 + j * 4
+          this.pixels[count++] = data[b]
+          this.pixels[count++] = data[b + 1]
+          this.pixels[count++] = data[b + 2]
+        }
       }
-    }
-    const total = this.prevImage.length / 4
-    const match = 100 - Math.ceil((diff / total) * 100)
-    this.reuseTab = match >= this.threshold
-  }
 
-  // set previous frame to current frame
-  this.prevImage = this.image
-
-  this.colors = []
-
-  if (!this.reuseTab) {
-    this.quantizer = new OctreeQuant()
-  }
-
-  for (var i = 0; i < h; i++) {
-    for (var j = 0; j < w; j++) {
-      var b = i * w * 4 + j * 4
-      const color = new Color(data[b], data[b + 1], data[b + 2])
-      this.colors.push(color)
+      var nPix = this.pixels.length / 3
+      this.indexedPixels = new Uint8Array(nPix)
 
       if (!this.reuseTab) {
-        this.quantizer.addColor(color)
+        this.quantizer = new NeuQuant(this.pixels, this.sample)
+        this.quantizer.buildColormap()
+        this.colorTab = this.quantizer.getColormap()
+      }
+
+      var k = 0
+      for (var j = 0; j < nPix; j++) {
+        var index = this.quantizer.lookupRGB(
+          this.pixels[k++] & 0xff,
+          this.pixels[k++] & 0xff,
+          this.pixels[k++] & 0xff
+        )
+
+        this.usedEntry[index] = true
+        this.indexedPixels[j] = index
+      }
+
+      this.colorDepth = 8
+      this.palSizeNeu = 7
+      this.pixels = null
+    } else if (this.algorithm === 'octree') {
+      this.colors = []
+
+      if (!this.reuseTab) {
+        this.quantizer = new OctreeQuant()
+      }
+
+      for (var i = 0; i < h; i++) {
+        for (var j = 0; j < w; j++) {
+          var b = i * w * 4 + j * 4
+          const color = new Color(data[b], data[b + 1], data[b + 2])
+          this.colors.push(color)
+
+          if (!this.reuseTab) {
+            this.quantizer.addColor(color)
+          }
+        }
+      }
+
+      const nPix = this.colors.length
+      this.indexedPixels = new Uint8Array(nPix)
+
+      if (!this.reuseTab) {
+        this.colorTab = []
+        const palette = this.quantizer.makePalette(Math.pow(2, this.palSizeOct + 1))
+
+        for (const p of palette) {
+          this.colorTab.push(p.red, p.green, p.blue)
+        }
+      }
+
+      for (var i = 0; i < nPix; i++) {
+        this.indexedPixels[i] = this.quantizer.getPaletteIndex(this.colors[i])
+      }
+
+      this.colorDepth = this.palSizeOct + 1
+    }
+
+    if (this.transparent !== null) {
+      this.transIndex = this.findClosest(this.transparent)
+
+      for (var pixelIndex = 0; pixelIndex < nPix; pixelIndex++) {
+        if (this.image[pixelIndex * 4 + 3] == 0) {
+          this.indexedPixels[pixelIndex] = this.transIndex
+        }
       }
     }
   }
 
-  const nPix = this.colors.length
-  this.indexedPixels = new Uint8Array(nPix)
-
-  if (!this.reuseTab) {
-    const palette = this.quantizer.makePalette(Math.pow(2, this.octPalSize + 1))
-    this.colorTab = []
-
-    for (const p of palette) {
-      this.colorTab.push(p.red, p.green, p.blue)
+  findClosest(c) {
+    if (this.colorTab === null) {
+      return -1
     }
-  }
 
-  for (var j = 0; j < nPix; j++) {
-    const index = this.quantizer.getPaletteIndex(this.colors[j])
-    this.indexedPixels[j] = index
-  }
+    var r = (c & 0xff0000) >> 16
+    var g = (c & 0x00ff00) >> 8
+    var b = c & 0x0000ff
+    var minpos = 0
+    var dmin = 256 * 256 * 256
+    var len = this.colorTab.length
 
-  this.colorDepth = this.octPalSize + 1
-
-  if (this.transparent !== null) {
-    this.transIndex = this.findClosest(this.transparent)
-
-    // ensure that pixels with full transparency in the RGBA image are using the selected transparent color index in the indexed image.
-    for (var pixelIndex = 0; pixelIndex < nPix; pixelIndex++) {
-      if (this.image[pixelIndex * 4 + 3] == 0) {
-        this.indexedPixels[pixelIndex] = this.transIndex
+    for (var i = 0; i < len; ) {
+      var index = i / 3
+      var dr = r - (this.colorTab[i++] & 0xff)
+      var dg = g - (this.colorTab[i++] & 0xff)
+      var db = b - (this.colorTab[i++] & 0xff)
+      var d = dr * dr + dg * dg + db * db
+      if (this.usedEntry[index] && d < dmin) {
+        dmin = d
+        minpos = index
       }
     }
+
+    return minpos
   }
-}
 
-/*
-  Returns index of palette color closest to c
-*/
-GIFEncoder.prototype.findClosest = function(c) {
-  if (this.colorTab === null) return -1
+  setFrameRate(fps) {
+    this.delay = Math.round(100 / fps)
+  }
 
-  var r = (c & 0xff0000) >> 16
-  var g = (c & 0x00ff00) >> 8
-  var b = c & 0x0000ff
-  var minpos = 0
-  var dmin = 256 * 256 * 256
-  var len = this.colorTab.length
+  setDelay(ms) {
+    this.delay = Math.round(ms / 10)
+  }
 
-  for (var i = 0; i < len; ) {
-    var index = i / 3
-    var dr = r - (this.colorTab[i++] & 0xff)
-    var dg = g - (this.colorTab[i++] & 0xff)
-    var db = b - (this.colorTab[i++] & 0xff)
-    var d = dr * dr + dg * dg + db * db
-    if (this.usedEntry[index] && d < dmin) {
-      dmin = d
-      minpos = index
+  setDispose(code) {
+    if (code >= 0) {
+      this.dispose = code
     }
   }
 
-  return minpos
-}
-
-/*
-  Sets the delay time between each frame, or changes it for subsequent frames
-  (applies to the next frame added)
-*/
-GIFEncoder.prototype.setDelay = function(milliseconds) {
-  this.delay = Math.round(milliseconds / 10)
-}
-
-/*
-  Sets frame rate in frames per second.
-*/
-GIFEncoder.prototype.setFrameRate = function(fps) {
-  this.delay = Math.round(100 / fps)
-}
-
-/*
-  Sets the GIF frame disposal code for the last added frame and any
-  subsequent frames.
-  Default is 0 if no transparent color has been set, otherwise 2.
-*/
-GIFEncoder.prototype.setDispose = function(disposalCode) {
-  if (disposalCode >= 0) this.dispose = disposalCode
-}
-
-/*
-  Sets the number of times the set of GIF frames should be played.
-  -1 = play once
-  0 = repeat indefinitely
-  Default is -1
-  Must be invoked before the first image is added
-*/
-GIFEncoder.prototype.setRepeat = function(repeat) {
-  this.repeat = repeat
-}
-
-/*
-  Sets the transparent color for the last added frame and any subsequent
-  frames. Since all colors are subject to modification in the quantization
-  process, the color in the final palette for each frame closest to the given
-  color becomes the transparent color for that frame. May be set to null to
-  indicate no transparent color.
-*/
-GIFEncoder.prototype.setTransparent = function(color) {
-  this.transparent = color
-}
-
-/*
-  Sets quality of color quantization (conversion of images to the maximum 256
-  colors allowed by the GIF specification). Lower values (minimum = 1)
-  produce better colors, but slow processing significantly. 10 is the
-  default, and produces good color mapping at reasonable speeds. Values
-  greater than 20 do not yield significant improvements in speed.
-
-  Only applies to NeuQuant algorithm
-*/
-GIFEncoder.prototype.setQuality = function(quality) {
-  if (quality < 1) quality = 1
-  this.sample = quality
-}
-
-/*
- Sets threshold % for optimizer. Only applies if useOptimizer is set to true. 
- The current image is compared to the previous image pixel by pixel. A match
- percentage is calculated. If the match percentage is greater than or equal to 
- threshold then the previous frames color table is reused for the current frame.
- When consecutive frames are very similar this can save on processing time by not
- having to create a new color table.
-*/
-GIFEncoder.prototype.setThreshold = function(threshold) {
-  if (threshold > 100) threshold = 100
-  else if (threshold < 10) threshold = 10
-  this.threshold = threshold
-}
-
-/*
-  Sets the octree palette size. Accepts values between 4 and 7. Color table palettes 
-  are 2^n+1 colors. Therefore setting this to value to 4 leads to a 32 color palette. 
-  5 is 64, 6 is 128 and 7 is 256. Smaller color tables speed up process time and shrink
-  output file size but the overall GIF quality goes down. 
-*/
-GIFEncoder.prototype.setPaletteSize = function(size) {
-  if (size > 7) size = 7
-  else if (size < 4) size = 4
-  this.octPalSize = size
-}
-
-/*
-  Writes Logical Screen Descriptor
-*/
-GIFEncoder.prototype.writeLSD = function() {
-  this.writeShort(this.width)
-  this.writeShort(this.height)
-
-  this.out.writeByte(
-    0x80 | // 1 : global color table flag = 1 (gct used)
-    0x70 | // 2-4 : color resolution = 7
-    0x00 | // 5 : gct sort flag = 0
-      this.palSize // 6-8 : gct size
-  )
-
-  this.out.writeByte(0) // background color index
-  this.out.writeByte(0) // pixel aspect ratio - assume 1:1
-}
-
-/*
-  Writes Graphic Control Extension
-*/
-GIFEncoder.prototype.writeGraphicCtrlExt = function() {
-  this.out.writeByte(0x21) // extension introducer
-  this.out.writeByte(0xf9) // GCE label
-  this.out.writeByte(4) // data block size
-
-  var transp, disp
-  if (this.transparent === null) {
-    transp = 0
-    disp = 0 // dispose = no action
-  } else {
-    transp = 1
-    disp = 2 // force clear if using transparent color
+  setRepeat(repeat) {
+    this.repeat = repeat
   }
 
-  if (this.dispose >= 0) {
-    disp = this.dispose & 7 // user override
+  setTransparent(color) {
+    this.transparent = color
   }
-  disp <<= 2
 
-  // packed fields
-  this.out.writeByte(
-    0 | // 1:3 reserved
-    disp | // 4:6 disposal
-    0 | // 7 user input - 0 = none
-      transp // 8 transparency flag
-  )
+  setQuality(quality) {
+    if (quality < 1) {
+      quality = 1
+    }
+    this.quality = quality
+  }
 
-  this.writeShort(this.delay) // delay x 1/100 sec
-  this.out.writeByte(this.transIndex) // transparent color index
-  this.out.writeByte(0) // block terminator
-}
+  setThreshold(threshold) {
+    if (threshold > 100) {
+      threshold = 100
+    } else if (threshold < 0) {
+      threshold = 0
+    }
+    this.threshold = threshold
+  }
 
-/*
-  Writes Netscape application extension to define repeat count.
-*/
-GIFEncoder.prototype.writeNetscapeExt = function() {
-  this.out.writeByte(0x21) // extension introducer
-  this.out.writeByte(0xff) // app extension label
-  this.out.writeByte(11) // block size
-  this.out.writeUTFBytes('NETSCAPE2.0') // app id + auth code
-  this.out.writeByte(3) // sub-block size
-  this.out.writeByte(1) // loop sub-block id
-  this.writeShort(this.repeat) // loop count (extra iterations, 0=repeat forever)
-  this.out.writeByte(0) // block terminator
-}
+  setPaletteSize(size) {
+    if (size > 7) {
+      size = 7
+    } else if (size < 4) {
+      size = 4
+    }
+    this.palSizeOct = size
+  }
 
-/*
-  Writes Image Descriptor
-*/
-GIFEncoder.prototype.writeImageDesc = function() {
-  this.out.writeByte(0x2c) // image separator
-  this.writeShort(0) // image position x,y = 0,0
-  this.writeShort(0)
-  this.writeShort(this.width) // image size
-  this.writeShort(this.height)
+  writeLSD() {
+    this.writeShort(this.width)
+    this.writeShort(this.height)
 
-  // packed fields
-  if (this.firstFrame) {
-    // no LCT - GCT is used for first (or only) frame
+    this.out.writeByte(0x80 | 0x70 | 0x00 | this.palSizeNeu)
+
     this.out.writeByte(0)
-  } else {
-    // specify normal LCT
-    this.out.writeByte(
-      0x80 | // 1 local color table 1=yes
-      0 | // 2 interlace - 0=no
-      0 | // 3 sorted - 0=no
-      0 | // 4-5 reserved
-        this.palSize // 6-8 size of color table
-    )
+    this.out.writeByte(0)
   }
-}
 
-/*
-  Writes color table
-*/
-GIFEncoder.prototype.writePalette = function() {
-  this.out.writeBytes(this.colorTab)
-  var n = 3 * 256 - this.colorTab.length
-  for (var i = 0; i < n; i++) this.out.writeByte(0)
-}
+  writeGraphicCtrlExt() {
+    this.out.writeByte(0x21)
+    this.out.writeByte(0xf9)
+    this.out.writeByte(4)
 
-GIFEncoder.prototype.writeShort = function(pValue) {
-  this.out.writeByte(pValue & 0xff)
-  this.out.writeByte((pValue >> 8) & 0xff)
-}
+    var transp, disp
+    if (this.transparent === null) {
+      transp = 0
+      disp = 0
+    } else {
+      transp = 1
+      disp = 2
+    }
 
-/*
-  Encodes and writes pixel data
-*/
-GIFEncoder.prototype.writePixels = function() {
-  var enc = new LZWEncoder(this.width, this.height, this.indexedPixels, this.colorDepth)
-  enc.encode(this.out)
-}
+    if (this.dispose >= 0) {
+      disp = this.dispose & 7
+    }
+    disp <<= 2
 
-/*
-  Adds final trailer to the GIF stream, if you don't call the finish method
-  the GIF stream will not be valid.
-*/
-GIFEncoder.prototype.finish = function() {
-  this.out.writeByte(0x3b)
-  this.end()
+    this.out.writeByte(0 | disp | 0 | transp)
+
+    this.writeShort(this.delay)
+    this.out.writeByte(this.transIndex)
+    this.out.writeByte(0)
+  }
+
+  writeNetscapeExt() {
+    this.out.writeByte(0x21)
+    this.out.writeByte(0xff)
+    this.out.writeByte(11)
+    this.out.writeUTFBytes('NETSCAPE2.0')
+    this.out.writeByte(3)
+    this.out.writeByte(1)
+    this.writeShort(this.repeat)
+    this.out.writeByte(0)
+  }
+
+  writeImageDesc() {
+    this.out.writeByte(0x2c)
+    this.writeShort(0)
+    this.writeShort(0)
+    this.writeShort(this.width)
+    this.writeShort(this.height)
+
+    if (this.firstFrame) {
+      this.out.writeByte(0)
+    } else {
+      this.out.writeByte(0x80 | 0 | 0 | 0 | this.palSizeNeu)
+    }
+  }
+
+  writePalette() {
+    this.out.writeBytes(this.colorTab)
+    var n = 3 * 256 - this.colorTab.length
+    for (var i = 0; i < n; i++) {
+      this.out.writeByte(0)
+    }
+  }
+
+  writeShort(pValue) {
+    this.out.writeByte(pValue & 0xff)
+    this.out.writeByte((pValue >> 8) & 0xff)
+  }
+
+  writePixels() {
+    var enc = new LZWEncoder(this.width, this.height, this.indexedPixels, this.colorDepth)
+    enc.encode(this.out)
+  }
+
+  finish() {
+    this.out.writeByte(0x3b)
+    this.end()
+  }
 }
 
 module.exports = GIFEncoder
