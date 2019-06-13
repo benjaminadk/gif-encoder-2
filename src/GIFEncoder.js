@@ -124,8 +124,9 @@ class GIFEncoder extends EventEmitter {
     this.firstFrame = false
     this.emitData()
 
-    if (this.totalFrames)
+    if (this.totalFrames) {
       this.emit('progress', Math.floor((this.frames++ / this.totalFrames) * 100))
+    }
   }
 
   analyzePixels() {
