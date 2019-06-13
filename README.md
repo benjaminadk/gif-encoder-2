@@ -105,7 +105,7 @@ writeFile(path.join(__dirname, 'output', 'beginner.gif'), buffer, error => {
 ```
 
 <p align="center">
-<img src="https://benjaminadk.s3-us-west-1.amazonaws.com/beginner.gif" />
+<img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/beginner.gif" />
 </p>
 
 ### Intermediate
@@ -170,6 +170,18 @@ async function createGif(algorithm) {
 createGif('neuquant')
 createGif('octree')
 ```
+
+#### NeuQuant Algorithm
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-neuquant.gif" />
+</p>
+
+#### Octree Algorithm
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-octree.gif" />
+</p>
 
 ### Advanced
 
