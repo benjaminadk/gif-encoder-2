@@ -1,5 +1,3 @@
-👷🏿‍♂️ Full Documentation & Examples coming soon...
-
 # gif-encoder-2
 
 Create GIFs with Node.js
@@ -8,6 +6,14 @@ Create GIFs with Node.js
 
 - [Installation](#installation)
 - [Overview](#overview)
+- [Usage](#usage)
+  - [Constructor](#constructor)
+  - [Methods](#methods)
+- [Examples](#examples)
+  - [Beginner](#beginner)
+  - [Intermediate](#intermediate)
+  - [Advanced](#advanced)
+- [Progess Event](#progress-event)
 
 ## Installation
 
@@ -19,9 +25,11 @@ npm install gif-encoder-2
 
 Builds on top of previous JavaScript GIF encoders including [`jsgif`](https://github.com/antimatter15/jsgif) and [`gifencoder`](https://github.com/eugeneware/gifencoder). This version adds the [Octree](https://en.wikipedia.org/wiki/Octree) quantization algorithm as an alternative to the original NeuQuant. Generally, using the Octree algorithm will take slightly longer to process a GIF than the NeuQuant algorithm. The Octree algorithm also tends to create a color banding effect. This lends itself more to illustrations than photographic images, but every set of images different and will produce different results. This version also adds a simple optimizer that can speed up overall processing time of both algorithms. There is also a progress event emitted that can be used when the total number of frames is known at instanciation.
 
-This library is designed to be used in a Node.js environment, which includes the Electron renderer process. [`node-canvas`](https://github.com/Automattic/node-canvas) can be a help peer library and of course, the conventional `HTML Canvas` can be used in the Electron environment.
+This library is designed to be used in a Node.js environment, which includes the Electron renderer process. [`node-canvas`](https://github.com/Automattic/node-canvas) can be a useful peer library and of course, the conventional `HTML Canvas` can be used in the Electron environment.
 
-## Constructor
+## Usage
+
+### Constructor
 
 `GIFEncoder(width, height, algorithm, useOptimizer, totalFrames)`
 
@@ -37,7 +45,7 @@ This library is designed to be used in a Node.js environment, which includes the
 const encoder = new GIFEncoder(720, 480, 'neuquant', true, 20)
 ```
 
-## Methods
+### Methods
 
 |        Method        |  Parameter   |               Description               |                           Notes                            |
 | :------------------: | :----------: | :-------------------------------------: | :--------------------------------------------------------: |
@@ -47,8 +55,9 @@ const encoder = new GIFEncoder(720, 480, 'neuquant', true, 20)
 |     `setQuality`     | number 1-30  |            Neuquant quality             |                     1 is best/slowest                      |
 |    `setThreshold`    | number 0-100 |     Optimizer threshold percentage      | Color table reused if current frame matches previous frame |
 |     `setRepeat`      | number >= 0  |        Number of loops GIF does         |   0 is forever, anything else if literal number of loops   |
+|       `finish`       |     n/a      |            Stops the encoder            |              Call after all frames are added               |
 
-## Usage Examples
+## Examples
 
 ### Beginner
 
@@ -171,13 +180,13 @@ createGif('neuquant')
 createGif('octree')
 ```
 
-#### NeuQuant Algorithm
+**NeuQuant Algorithm**
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-neuquant.gif" />
 </p>
 
-#### Octree Algorithm
+**Octree Algorithm**
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-octree.gif" />
