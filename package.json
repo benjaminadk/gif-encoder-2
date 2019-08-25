@@ -7,10 +7,12 @@
     "type": "git",
     "url": "https://github.com/benjaminadk/gif-encoder-2.git"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
+  "keywords": [
+    "gif",
+    "encoder",
+    "image",
+    "node"
+  ],
   "author": {
     "name": "benjaminadk",
     "email": "benjaminadk@gmail.com",

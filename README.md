@@ -1,6 +1,6 @@
 # gif-encoder-2
 
-Create GIFs with Node.js
+Encode GIFs with Node.js
 
 ## Contents
 
@@ -10,9 +10,10 @@ Create GIFs with Node.js
   - [Constructor](#constructor)
   - [Methods](#methods)
 - [Examples](#examples)
-  - [Beginner](#beginner)
-  - [Intermediate](#intermediate)
-  - [Advanced](#advanced)
+  - [Canvas Animation](#canvas-animation)
+  - [Sequencial Images](#sequencial-images)
+- [Algorithms](#algorithms)
+- [Optimizer](#optimizer)
 - [Progess Event](#progress-event)
 
 ## Installation
@@ -23,9 +24,15 @@ npm install gif-encoder-2
 
 ## Overview
 
-Builds on top of previous JavaScript GIF encoders including [`jsgif`](https://github.com/antimatter15/jsgif) and [`gifencoder`](https://github.com/eugeneware/gifencoder). This version adds the [Octree](https://en.wikipedia.org/wiki/Octree) quantization algorithm as an alternative to the original NeuQuant. Generally, using the Octree algorithm will take slightly longer to process a GIF than the NeuQuant algorithm. The Octree algorithm also tends to create a color banding effect. This lends itself more to illustrations than photographic images, but every set of images different and will produce different results. This version also adds a simple optimizer that can speed up overall processing time of both algorithms. There is also a progress event emitted that can be used when the total number of frames is known at instanciation.
+This library builds on top of previous _JavaScript_ _GIF_ encoders including [jsgif](https://github.com/antimatter15/jsgif) and [gifencoder](https://github.com/eugeneware/gifencoder).
 
-This library is designed to be used in a Node.js environment, which includes the Electron renderer process. [`node-canvas`](https://github.com/Automattic/node-canvas) can be a useful peer library and of course, the conventional `HTML Canvas` can be used in the Electron environment.
+This library adds the [Octree](https://en.wikipedia.org/wiki/Octree) quantization algorithm as an alternative to the original _NeuQuant_ algorithm.
+
+This library adds a simple optimizer to speed up overall processing time of both algorithms.
+
+This library adds a progress event.
+
+This library is designed to be used in a _Node_ environment, including the [Electron](https://electronjs.org/) renderer process. [Node Canvas](https://github.com/Automattic/node-canvas) can be a useful peer library but isn't required. The [HTML Canvas API] can be used in _Electron_.
 
 ## Usage
 
@@ -42,26 +49,29 @@ This library is designed to be used in a Node.js environment, which includes the
 | `totalFrames`  | number  |     total number of images     |    no    |     0      |
 
 ```javascript
+const encoder = new GIFEncoder(500, 500)
+const encoder = new GIFEncoder(1200, 800, 'octree', false)
 const encoder = new GIFEncoder(720, 480, 'neuquant', true, 20)
 ```
 
 ### Methods
 
-|        Method        |  Parameter   |               Description               |                           Notes                            |
-| :------------------: | :----------: | :-------------------------------------: | :--------------------------------------------------------: |
-|       `start`        |     n/a      |           Starts the encoder            |                            n/a                             |
-|      `setDelay`      |    number    | Number of milliseconds to display frame |                Can be set once or per frame                |
-| `setFramesPerSecond` |    number    | Number of frames per second to display  |                  Another way to set delay                  |
-|     `setQuality`     | number 1-30  |            Neuquant quality             |                     1 is best/slowest                      |
-|    `setThreshold`    | number 0-100 |     Optimizer threshold percentage      | Color table reused if current frame matches previous frame |
-|     `setRepeat`      | number >= 0  |        Number of loops GIF does         |   0 is forever, anything else if literal number of loops   |
-|       `finish`       |     n/a      |            Stops the encoder            |              Call after all frames are added               |
+|        Method        |    Parameter     |               Description               |                           Notes                            |
+| :------------------: | :--------------: | :-------------------------------------: | :--------------------------------------------------------: |
+|       `start`        |       n/a        |           Starts the encoder            |                            n/a                             |
+|      `addFrame`      | `Canvas Context` |         Adds a frame to the GIF         |                            n/a                             |
+|      `setDelay`      |      number      | Number of milliseconds to display frame |                Can be set once or per frame                |
+| `setFramesPerSecond` |      number      | Number of frames per second to display  |                  Another way to set delay                  |
+|     `setQuality`     |   number 1-30    |            Neuquant quality             |                     1 is best/slowest                      |
+|    `setThreshold`    |   number 0-100   |     Optimizer threshold percentage      | Color table reused if current frame matches previous frame |
+|     `setRepeat`      |   number >= 0    |        Number of loops GIF does         |   0 is forever, anything else if literal number of loops   |
+|       `finish`       |       n/a        |            Stops the encoder            |              Call after all frames are added               |
 
 ## Examples
 
-### Beginner
+### Canvas Animation
 
-Create a GIF from four canvas rectangles
+Draw a square that changes color as it moves.
 
 ```javascript
 const { createCanvas } = require('canvas')
@@ -117,9 +127,9 @@ writeFile(path.join(__dirname, 'output', 'beginner.gif'), buffer, error => {
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/beginner.gif" />
 </p>
 
-### Intermediate
+### Sequencial Images
 
-Create two GIFs from a directory of image files. One GIF for each algorithm. The PNG files have been compressed to keep package size reasonable so the quality is not that great.
+Create a function that reads a directory of images and turns them into a _GIF_.
 
 ```javascript
 const { createCanvas, Image } = require('canvas')
@@ -182,23 +192,27 @@ createGif('octree')
 
 **NeuQuant Algorithm**
 
-<p align="center">
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-neuquant.gif" />
-</p>
 
 **Octree Algorithm**
 
-<p align="center">
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/intermediate-octree.gif" />
-</p>
 
-### Advanced
+## Algorithms
 
-Compare the processing time and file size of the NeuQuant and Octree algorithms.
+- _NeuQuant_ tends to perform faster than _Octree_
+- _Octree_ tends to output a smaller file than _NeuQuant_
+- _Octree_ produces a slight banding effect
+
+The example above encodes 20 images measuring 300px x 240px. The output file from _NeuQuant_ is 1172KB and the _Octree_ is less than half of that at 515KB.
+
+## Optimizer
+
+The optimizer works by reusing the color palette from the previous image on the current image. This can reduce the overall processing time signifigantly but its best suited for a sequence of similarly colored images. Use the `setThreshold` method to set a percentage determining how similar the two images must be to trigger the optimizer. The default is `90%`. The optimizer is only used if `true` is passed as the 4th argument to the constructor.
 
 ## Progress Event
 
-Works great if `totalFrames` is expressed in constructor, otherwise this value will be 0.
+Works if `totalFrames` is expressed in constructor, otherwise this value will be 0.
 
 ```javascript
 encoder.on('progress', percent => {
