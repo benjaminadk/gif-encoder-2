@@ -1,10 +1,10 @@
+const GIFEncoder = require('..')
 const { createCanvas } = require('canvas')
 const { writeFile } = require('fs')
 const path = require('path')
-const GIFEncoder = require('..')
 
-const size = 400
-const half = 200
+const size = 200
+const half = size / 2
 
 const canvas = createCanvas(size, size)
 const ctx = canvas.getContext('2d')

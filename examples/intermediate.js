@@ -1,16 +1,16 @@
+const GIFEncoder = require('..')
 const { createCanvas, Image } = require('canvas')
-const { createWriteStream, readdir } = require('fs')
+const fs = require('fs')
 const { promisify } = require('util')
 const path = require('path')
-const GIFEncoder = require('..')
 
-const readdirAsync = promisify(readdir)
+const readdir = promisify(fs.readdir)
 const imagesFolder = path.join(__dirname, 'input')
 
 async function createGif(algorithm) {
   return new Promise(async resolve1 => {
     // read image directory
-    const files = await readdirAsync(imagesFolder)
+    const files = await readdir(imagesFolder)
 
     // find the width and height of the image
     const [width, height] = await new Promise(resolve2 => {
@@ -22,7 +22,7 @@ async function createGif(algorithm) {
     // base GIF filepath on which algorithm is being used
     const dstPath = path.join(__dirname, 'output', `intermediate-${algorithm}.gif`)
     // create a write stream for GIF data
-    const writeStream = createWriteStream(dstPath)
+    const writeStream = fs.createWriteStream(dstPath)
     // when stream closes GIF is created so resolve promise
     writeStream.on('close', () => {
       resolve1()
