@@ -74,13 +74,13 @@ const encoder = new GIFEncoder(720, 480, 'neuquant', true, 20)
 Draw a square that changes color as it moves.
 
 ```javascript
+const GIFEncoder = require('gif-encoder-2')
 const { createCanvas } = require('canvas')
 const { writeFile } = require('fs')
 const path = require('path')
-const GIFEncoder = require('..')
 
-const size = 400
-const half = 200
+const size = 200
+const half = size / 2
 
 const canvas = createCanvas(size, size)
 const ctx = canvas.getContext('2d')
@@ -132,11 +132,11 @@ writeFile(path.join(__dirname, 'output', 'beginner.gif'), buffer, error => {
 Create a function that reads a directory of images and turns them into a _GIF_.
 
 ```javascript
+const GIFEncoder = require('gif-encoder-2')
 const { createCanvas, Image } = require('canvas')
 const { createWriteStream, readdir } = require('fs')
 const { promisify } = require('util')
 const path = require('path')
-const GIFEncoder = require('..')
 
 const readdirAsync = promisify(readdir)
 const imagesFolder = path.join(__dirname, 'input')
