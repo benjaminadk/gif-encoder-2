@@ -291,7 +291,7 @@ class GIFEncoder extends EventEmitter {
     if (quality < 1) {
       quality = 1
     }
-    this.quality = quality
+    this.sample = quality
   }
 
   setThreshold(threshold) {
