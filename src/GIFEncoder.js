@@ -98,7 +98,7 @@ class GIFEncoder extends EventEmitter {
     this.readStreams = []
   }
 
-  addFrame(input) {
+  addFrame(input, delay) {
     if (input && input.getImageData) {
       this.image = input.getImageData(0, 0, this.width, this.height).data
     } else {
@@ -115,7 +115,7 @@ class GIFEncoder extends EventEmitter {
       }
     }
 
-    this.writeGraphicCtrlExt()
+    this.writeGraphicCtrlExt(delay)
     this.writeImageDesc()
     if (!this.firstFrame) {
       this.writePalette()
@@ -322,7 +322,7 @@ class GIFEncoder extends EventEmitter {
     this.out.writeByte(0)
   }
 
-  writeGraphicCtrlExt() {
+  writeGraphicCtrlExt(delay) {
     this.out.writeByte(0x21)
     this.out.writeByte(0xf9)
     this.out.writeByte(4)
@@ -343,7 +343,7 @@ class GIFEncoder extends EventEmitter {
 
     this.out.writeByte(0 | disp | 0 | transp)
 
-    this.writeShort(this.delay)
+    this.writeShort(!isNaN(delay) ? delay : this.delay)
     this.out.writeByte(this.transIndex)
     this.out.writeByte(0)
   }

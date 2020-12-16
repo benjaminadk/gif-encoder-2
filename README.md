@@ -59,7 +59,7 @@ const encoder = new GIFEncoder(720, 480, 'neuquant', true, 20)
 |        Method        |    Parameter     |               Description               |                           Notes                            |
 | :------------------: | :--------------: | :-------------------------------------: | :--------------------------------------------------------: |
 |       `start`        |       n/a        |           Starts the encoder            |                            n/a                             |
-|      `addFrame`      | `Canvas Context` |         Adds a frame to the GIF         |                            n/a                             |
+|      `addFrame`      | `Canvas Context`, _delay_ |         Adds a frame to the GIF         |                            `delay` (milliseconds) param is optional. Fallbacks to global delay if none given                             |
 |      `setDelay`      |      number      | Number of milliseconds to display frame |                Can be set once or per frame                |
 | `setFramesPerSecond` |      number      | Number of frames per second to display  |                  Another way to set delay                  |
 |     `setQuality`     |   number 1-30    |            Neuquant quality             |                     1 is best/slowest                      |
