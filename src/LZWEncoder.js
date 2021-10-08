@@ -55,6 +55,7 @@ function LZWEncoder(width, height, pixels, colorDepth) {
   var a_count
   var free_ent = 0 // first unused entry
   var maxcode
+  var remaining
 
   // block compression parameters -- after all codes are used up,
   // and compression rate changes, start over.
