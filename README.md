@@ -11,10 +11,10 @@ Encode GIFs with Node.js
   - [Methods](#methods)
 - [Examples](#examples)
   - [Canvas Animation](#canvas-animation)
-  - [Sequencial Images](#sequencial-images)
+  - [Sequential Images](#sequential-images)
 - [Algorithms](#algorithms)
 - [Optimizer](#optimizer)
-- [Progess Event](#progress-event)
+- [Progress Event](#progress-event)
 
 ## Installation
 
@@ -127,7 +127,7 @@ writeFile(path.join(__dirname, 'output', 'beginner.gif'), buffer, error => {
 <img src="https://raw.githubusercontent.com/benjaminadk/gif-encoder-2/master/examples/output/beginner.gif" />
 </p>
 
-### Sequencial Images
+### Sequential Images
 
 Create a function that reads a directory of images and turns them into a _GIF_.
 
@@ -208,7 +208,7 @@ The example above encodes 20 images measuring 300px x 240px. The output file fro
 
 ## Optimizer
 
-The optimizer works by reusing the color palette from the previous image on the current image. This can reduce the overall processing time signifigantly but its best suited for a sequence of similarly colored images. Use the `setThreshold` method to set a percentage determining how similar the two images must be to trigger the optimizer. The default is `90%`. The optimizer is only used if `true` is passed as the 4th argument to the constructor.
+The optimizer works by reusing the color palette from the previous image on the current image. This can reduce the overall processing time significantly but its best suited for a sequence of similarly colored images. Use the `setThreshold` method to set a percentage determining how similar the two images must be to trigger the optimizer. The default is `90%`. The optimizer is only used if `true` is passed as the 4th argument to the constructor.
 
 ## Progress Event
 
