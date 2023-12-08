@@ -1,8 +1,9 @@
-const stream = require('stream')
-const EventEmitter = require('events')
-const LZWEncoder = require('./LZWEncoder.js')
-const NeuQuant = require('./TypedNeuQuant.js')
-const { OctreeQuant, Color } = require('./OctreeQuant')
+import stream from "stream";
+import EventEmitter from "events";
+import LZWEncoder from "./LZWEncoder.js";
+import NeuQuant from "./TypedNeuQuant.js";
+import { OctreeQuant, Color } from "./OctreeQuant";
+import { Buffer } from "buffer";
 
 class ByteArray {
   constructor() {
@@ -397,4 +398,4 @@ class GIFEncoder extends EventEmitter {
   }
 }
 
-module.exports = GIFEncoder
+export default GIFEncoder

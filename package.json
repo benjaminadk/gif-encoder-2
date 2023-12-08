@@ -2,6 +2,7 @@
   "name": "gif-encoder-2",
   "version": "1.0.5",
   "description": "GIF generator for Node.js",
+  "type": "module",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -19,7 +20,9 @@
     "url": "https://github.com/benjaminadk"
   },
   "license": "UNLICENSE",
-  "devDependencies": {
-    "canvas": "2.5.0"
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "canvas": "^2.11.2",
+    "events": "^3.3.0"
   }
 }

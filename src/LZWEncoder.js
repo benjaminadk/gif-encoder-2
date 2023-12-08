@@ -227,4 +227,4 @@ function LZWEncoder(width, height, pixels, colorDepth) {
   this.encode = encode
 }
 
-module.exports = LZWEncoder
+export default LZWEncoder;
