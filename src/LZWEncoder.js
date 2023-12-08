@@ -55,6 +55,9 @@ function LZWEncoder(width, height, pixels, colorDepth) {
   var a_count
   var free_ent = 0 // first unused entry
   var maxcode
+  var remaining
+  var curPixel
+  var n_bits
 
   // block compression parameters -- after all codes are used up,
   // and compression rate changes, start over.
@@ -224,4 +227,4 @@ function LZWEncoder(width, height, pixels, colorDepth) {
   this.encode = encode
 }
 
-module.exports = LZWEncoder
+export default LZWEncoder;

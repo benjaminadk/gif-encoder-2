@@ -1,1 +1,3 @@
-module.exports = require('./src/GIFEncoder')
+import GIFEncoder from './src/GIFEncoder'
+
+export default GIFEncoder;

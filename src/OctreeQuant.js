@@ -6,7 +6,7 @@
 
 const MAX_DEPTH = 8
 
-class OctreeQuant {
+export class OctreeQuant {
   constructor() {
     this.levels = Array.from({ length: MAX_DEPTH }, () => [])
     this.root = new Node(0, this)
@@ -77,7 +77,7 @@ class OctreeQuant {
   }
 }
 
-class Node {
+export class Node {
   constructor(level, parent) {
     this._color = new Color(0, 0, 0)
     this.pixelCount = 0
@@ -174,7 +174,7 @@ class Node {
   }
 }
 
-class Color {
+export class Color {
   constructor(red = 0, green = 0, blue = 0) {
     this.red = red
     this.green = green
@@ -216,5 +216,3 @@ function getColorIndex(color, level) {
   if (color.blue & mask) index |= 0b001
   return index
 }
-
-module.exports = { OctreeQuant, Node, Color }
